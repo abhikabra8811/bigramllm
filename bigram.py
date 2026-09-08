@@ -14,13 +14,13 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
 n_embd = 384
 n_head = 6
-n_layer = 6
+n_layer = 10
 dropout = 0.2
 # ------------
 
 torch.manual_seed(1337)
 
-with open('mr.txt', 'r', encoding='utf-8') as f:
+with open('elon_tweets.txt', 'r', encoding='utf-8') as f:
     text = ''.join(islice(f, 100_000))
 
 #all the unique characters in the text
@@ -76,6 +76,7 @@ class Head(nn.Module):
 
 
     def forward(self, x):
+        T = x.size(1)
         q = self.query(x) # [B x T x head_size]
         k = self.key(x) # [B x T x head_size]
         v = self.value(x) # [B x T x head_size]
@@ -85,7 +86,7 @@ class Head(nn.Module):
         # This helps to prevent the dot products from growing too large, 
         # which can make the softmax function produce very small gradients.
         wei = q @ k.transpose(-2, -1) * (k.size(-1) ** -0.5) # [B x T x T] attention weights before masking and softmax
-        wei = wei.masked_fill(self.tril[:block_size, :block_size] == 0, float('-inf'))
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
         out = wei @ v # [B x T x head_size] after applying attention weights
         out = self.dropout(out)
@@ -236,5 +237,5 @@ for iter in range(max_iters):
 
 #generate some text after training
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
-generated = model.generate(context, max_new_tokens=100)
+generated = model.generate(context, max_new_tokens=1400)
 print(generated)
