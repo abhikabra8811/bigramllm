@@ -31,7 +31,7 @@ vocab_size = len(chars) # size of the vocabulary
 stoi = { ch:i for i,ch in enumerate(chars) }
 itos = { i:ch for i,ch in enumerate(chars) }
 encode = lambda s:[stoi[c] for c in s] # convert string to list of integers representing characters
-decode = lambda l: ''.join([itos[i] for i in l]) # convert list of integers back to string
+decode = lambda l: ''.join([itos[i] for i in l]) # convert token IDs to characters
 
 # Train and test data split
 data = torch.tensor(encode(text), dtype=torch.long)
@@ -236,6 +236,6 @@ for iter in range(max_iters):
     optimizer.step()
 
 #generate some text after training
-context = torch.zeros((1, 1), dtype=torch.long, device=device)
-generated = model.generate(context, max_new_tokens=1400)
-print(generated)
+context = torch.tensor([encode("00/08/2026")], dtype=torch.long, device=device)
+generated = model.generate(context, max_new_tokens=1400)[0].tolist()
+print(decode(generated))
