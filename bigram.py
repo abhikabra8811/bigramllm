@@ -72,6 +72,10 @@ class Head(nn.Module):
         self.value = nn.Linear(n_embd, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
 
+        self.key2 = nn.Linear(head_size, head_size, bias=False)
+        self.query2 = nn.Linear(head_size, head_size, bias=False)
+        self.value2 = nn.Linear(head_size, head_size, bias=False)
+
         self.dropout = nn.Dropout(dropout)
 
 
@@ -89,6 +93,15 @@ class Head(nn.Module):
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
         out = wei @ v # [B x T x head_size] after applying attention weights
+
+        q2 = self.query2(out)
+        k2 = self.key2(out)
+        v2 = self.value2(out)
+
+        wei2 = q2 @ k2.transpose(-2, -1) * (k2.size(-1) ** -0.5) # [B x T x T] attention weights before masking and softmax
+        #wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        wei2 = F.softmax(wei2, dim=-1)
+        out = wei2 @ v2 # [B x T x head_size] after applying attention weights
         out = self.dropout(out)
         return out
 
