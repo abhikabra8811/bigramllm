@@ -72,15 +72,18 @@ class Head(nn.Module):
         self.value = nn.Linear(n_embd, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
 
-        self.key2 = nn.Linear(head_size, head_size, bias=False)
-        self.query2 = nn.Linear(head_size, head_size, bias=False)
-        self.value2 = nn.Linear(head_size, head_size, bias=False)
+        self.key2 = nn.Linear(head_size, head_size // 2, bias=False)
+        self.query2 = nn.Linear(head_size, head_size // 2, bias=False)
+        #self.value2 = nn.Linear(head_size, head_size, bias=False)
+
+        # self.ln1 = nn.LayerNorm(head_size)
+        # self.ln2 = nn.LayerNorm(head_size)
 
         self.dropout = nn.Dropout(dropout)
 
-
     def forward(self, x):
         T = x.size(1)
+        #x_norm = self.ln1(x)
         q = self.query(x) # [B x T x head_size]
         k = self.key(x) # [B x T x head_size]
         v = self.value(x) # [B x T x head_size]
@@ -89,20 +92,23 @@ class Head(nn.Module):
         # why do we scale with the square root of the key dimension? 
         # This helps to prevent the dot products from growing too large, 
         # which can make the softmax function produce very small gradients.
-        wei = q @ k.transpose(-2, -1) * (k.size(-1) ** -0.5) # [B x T x T] attention weights before masking and softmax
+        A1 = q @ k.transpose(-2, -1) * (k.size(-1) ** -0.5) # [B x T x T] attention weights before masking and softmax
+        wei = A1.clone() # [B x T x T] attention weights before masking and softmax
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
         out = wei @ v # [B x T x head_size] after applying attention weights
 
-        q2 = self.query2(out)
-        k2 = self.key2(out)
-        v2 = self.value2(out)
+        #out_norm = self.ln2(out)
+        R = A1 @ out # [B x T x head_size] after applying attention weights
+        q2 = self.query2(R) # [B x T x head_size]
+        k2 = self.key2(R)
+        #v2 = self.value2(R)
 
         wei2 = q2 @ k2.transpose(-2, -1) * (k2.size(-1) ** -0.5) # [B x T x T] attention weights before masking and softmax
-        #wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        wei2 = wei2.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei2 = F.softmax(wei2, dim=-1)
-        out = wei2 @ v2 # [B x T x head_size] after applying attention weights
-        out = self.dropout(out)
+        out2 = wei2 @ v # [B x T x head_size] after applying attention weights
+        out = out + self.dropout(out2)
         return out
 
 # Multi-head self-attention mechanism
