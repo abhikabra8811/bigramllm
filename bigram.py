@@ -99,7 +99,7 @@ class Head(nn.Module):
         out = wei @ v # [B x T x head_size] after applying attention weights
 
         #out_norm = self.ln2(out)
-        R = A1 @ out # [B x T x head_size] after applying attention weights
+        R = wei @ out # [B x T x head_size] after applying attention weights
         q2 = self.query2(R) # [B x T x head_size]
         k2 = self.key2(R)
         #v2 = self.value2(R)
